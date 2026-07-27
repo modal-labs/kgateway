@@ -1,6 +1,7 @@
 package trafficpolicy
 
 import (
+	"sort"
 	"testing"
 
 	bufferv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/buffer/v3"
@@ -87,7 +88,7 @@ func TestBufferFilterRunsImmediatelyBeforeRustformation(t *testing.T) {
 	require.Len(t, httpFilters, 2)
 
 	sortedFilters := filters.StagedHttpFilterList(httpFilters)
-	sortedFilters.Sort()
+	sort.Sort(sortedFilters)
 
 	assert.Equal(t, bufferFilterName, sortedFilters[0].Filter.GetName())
 	assert.Equal(t, filters.RelativeToStage(filters.AcceptedStage, -2), sortedFilters[0].Stage)
