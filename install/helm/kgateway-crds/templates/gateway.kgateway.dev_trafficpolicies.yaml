@@ -1902,6 +1902,21 @@ spec:
                         maxProperties: 16
                         minProperties: 1
                         type: object
+                      bucketFromHeaders:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          BucketFromHeaders adds dynamic entries to the bucket identity: each key is
+                          set to the value of the named request header, evaluated per request. This
+                          lets a single policy fan out into per-tenant buckets (e.g. an org id
+                          header) that the RLQS can assign distinct quotas to. Requests missing the
+                          header do not resolve to a bucket and are allowed. Keys must not overlap
+                          with Bucket.
+                        maxProperties: 16
+                        type: object
+                        x-kubernetes-validations:
+                        - message: header names must not be empty
+                          rule: self.all(k, size(self[k]) > 0)
                       denyStatus:
                         default: 429
                         description: |-
@@ -1960,6 +1975,10 @@ spec:
                     - bucket
                     - extensionRef
                     type: object
+                    x-kubernetes-validations:
+                    - message: bucket and bucketFromHeaders keys must not overlap
+                      rule: '!has(self.bucketFromHeaders) || !self.bucket.exists(k,
+                        k in self.bucketFromHeaders)'
                 type: object
               rbac:
                 description: |-

@@ -51,6 +51,12 @@ Listeners:
                         '@type': type.googleapis.com/envoy.extensions.filters.http.rate_limit_quota.v3.RateLimitQuotaBucketSettings
                         bucketIdBuilder:
                           bucketIdBuilder:
+                            org:
+                              customValue:
+                                name: request-header
+                                typedConfig:
+                                  '@type': type.googleapis.com/envoy.type.matcher.v3.HttpRequestHeaderMatchInput
+                                  headerName: x-modal-org-id
                             route:
                               stringValue: fast
                         denyResponseSettings:

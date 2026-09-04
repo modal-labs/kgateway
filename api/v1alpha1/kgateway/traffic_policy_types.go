@@ -408,6 +408,7 @@ type RateLimit struct {
 
 // RateLimitQuotaPolicy defines a quota-based rate limiting policy using an
 // external Rate Limit Quota Service (RLQS).
+// +kubebuilder:validation:XValidation:rule="!has(self.bucketFromHeaders) || !self.bucket.exists(k, k in self.bucketFromHeaders)",message="bucket and bucketFromHeaders keys must not overlap"
 type RateLimitQuotaPolicy struct {
 	// ExtensionRef references a GatewayExtension of type RateLimitQuota that
 	// provides the RLQS server and quota domain.
@@ -422,6 +423,17 @@ type RateLimitQuotaPolicy struct {
 	// +kubebuilder:validation:MinProperties=1
 	// +kubebuilder:validation:MaxProperties=16
 	Bucket map[string]string `json:"bucket"`
+
+	// BucketFromHeaders adds dynamic entries to the bucket identity: each key is
+	// set to the value of the named request header, evaluated per request. This
+	// lets a single policy fan out into per-tenant buckets (e.g. an org id
+	// header) that the RLQS can assign distinct quotas to. Requests missing the
+	// header do not resolve to a bucket and are allowed. Keys must not overlap
+	// with Bucket.
+	// +optional
+	// +kubebuilder:validation:MaxProperties=16
+	// +kubebuilder:validation:XValidation:rule="self.all(k, size(self[k]) > 0)",message="header names must not be empty"
+	BucketFromHeaders map[string]string `json:"bucketFromHeaders,omitempty"`
 
 	// ReportingInterval is how often Envoy reports bucket usage to the RLQS.
 	// Quota assignments are pushed by the RLQS in response to reports, so

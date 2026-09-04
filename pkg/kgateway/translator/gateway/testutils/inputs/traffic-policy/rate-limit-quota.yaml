@@ -60,6 +60,8 @@ spec:
         name: rlqs
       bucket:
         route: fast
+      bucketFromHeaders:
+        org: x-modal-org-id
       reportingInterval: 2s
       noAssignmentBehavior: Deny
       denyStatus: 503

@@ -4838,6 +4838,13 @@ func (in *RateLimitQuotaPolicy) DeepCopyInto(out *RateLimitQuotaPolicy) {
 			(*out)[key] = val
 		}
 	}
+	if in.BucketFromHeaders != nil {
+		in, out := &in.BucketFromHeaders, &out.BucketFromHeaders
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.ReportingInterval != nil {
 		in, out := &in.ReportingInterval, &out.ReportingInterval
 		*out = new(v1.Duration)

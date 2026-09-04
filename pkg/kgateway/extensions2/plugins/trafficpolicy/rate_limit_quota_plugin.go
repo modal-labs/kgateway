@@ -119,11 +119,21 @@ func buildRateLimitQuotaBucketSettings(quota *kgateway.RateLimitQuotaPolicy) *rl
 		fallback = envoytypev3.RateLimitStrategy_DENY_ALL
 	}
 
-	builder := make(map[string]*rlqsv3.RateLimitQuotaBucketSettings_BucketIdBuilder_ValueBuilder, len(quota.Bucket))
+	builder := make(map[string]*rlqsv3.RateLimitQuotaBucketSettings_BucketIdBuilder_ValueBuilder, len(quota.Bucket)+len(quota.BucketFromHeaders))
 	for k, v := range quota.Bucket {
 		builder[k] = &rlqsv3.RateLimitQuotaBucketSettings_BucketIdBuilder_ValueBuilder{
 			ValueSpecifier: &rlqsv3.RateLimitQuotaBucketSettings_BucketIdBuilder_ValueBuilder_StringValue{
 				StringValue: v,
+			},
+		}
+	}
+	for k, header := range quota.BucketFromHeaders {
+		builder[k] = &rlqsv3.RateLimitQuotaBucketSettings_BucketIdBuilder_ValueBuilder{
+			ValueSpecifier: &rlqsv3.RateLimitQuotaBucketSettings_BucketIdBuilder_ValueBuilder_CustomValue{
+				CustomValue: &envoycorev3.TypedExtensionConfig{
+					Name:        "request-header",
+					TypedConfig: utils.MustMessageToAny(&envoymatcherv3.HttpRequestHeaderMatchInput{HeaderName: header}),
+				},
 			},
 		}
 	}
