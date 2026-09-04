@@ -486,9 +486,10 @@ type RateLimitQuotaBucketEntry struct {
 	Value *string `json:"value,omitempty"`
 
 	// Header is the request header whose value is used for this entry, evaluated
-	// per request. Must be set when Type is Header. When the header is absent
-	// the key is omitted from the bucket id, so such requests share the bucket
-	// made of the remaining entries.
+	// per request. Must be set when Type is Header. Envoy cannot build a bucket
+	// id for a request missing the header, so such requests bypass the quota
+	// (they are allowed and not reported); require the header upstream of this
+	// policy if that is not acceptable.
 	// +optional
 	// +kubebuilder:validation:MinLength=1
 	Header *string `json:"header,omitempty"`
