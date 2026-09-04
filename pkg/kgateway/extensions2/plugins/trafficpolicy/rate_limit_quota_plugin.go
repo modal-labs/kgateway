@@ -1,8 +1,9 @@
 package trafficpolicy
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
 	cncfcorev3 "github.com/cncf/xds/go/xds/core/v3"
@@ -109,9 +110,9 @@ func buildRateLimitQuotaBucketSettings(quota *kgateway.RateLimitQuotaPolicy) *rl
 	if quota.ReportingInterval != nil {
 		reportingInterval = quota.ReportingInterval.Duration
 	}
-	denyStatus := uint32(defaultRateLimitQuotaDenyStatus)
-	if quota.DenyStatus != nil {
-		denyStatus = *quota.DenyStatus
+	denyStatus := envoytypev3.StatusCode(defaultRateLimitQuotaDenyStatus)
+	if quota.DenyStatus != nil && *quota.DenyStatus <= 599 {
+		denyStatus = envoytypev3.StatusCode(*quota.DenyStatus) //nolint:gosec // bounded above
 	}
 	fallback := envoytypev3.RateLimitStrategy_ALLOW_ALL
 	if quota.NoAssignmentBehavior != nil && *quota.NoAssignmentBehavior == kgateway.RateLimitQuotaFallbackDeny {
@@ -133,7 +134,7 @@ func buildRateLimitQuotaBucketSettings(quota *kgateway.RateLimitQuotaPolicy) *rl
 		},
 		ReportingInterval: durationpb.New(reportingInterval),
 		DenyResponseSettings: &rlqsv3.RateLimitQuotaBucketSettings_DenyResponseSettings{
-			HttpStatus: &envoytypev3.HttpStatus{Code: envoytypev3.StatusCode(denyStatus)},
+			HttpStatus: &envoytypev3.HttpStatus{Code: denyStatus},
 		},
 		NoAssignmentBehavior: &rlqsv3.RateLimitQuotaBucketSettings_NoAssignmentBehavior{
 			NoAssignmentBehavior: &rlqsv3.RateLimitQuotaBucketSettings_NoAssignmentBehavior_FallbackRateLimit{
@@ -189,7 +190,7 @@ func (p *trafficPolicyPluginGwPass) handleRateLimitQuota(fcn string, quota *rate
 		// Envoy supports a single RLQS filter instance per chain in this MVP;
 		// the first provider seen wins.
 		logger.Warn("multiple RateLimitQuota extensions on one listener are not supported; ignoring",
-			"filterChain", fcn, "used", chain.provider.ResourceName(), "ignored", quota.provider.ResourceName())
+			"filter_chain", fcn, "used", chain.provider.ResourceName(), "ignored", quota.provider.ResourceName())
 		return
 	}
 
@@ -253,15 +254,8 @@ func routeMatchPredicate(rm *envoyroutev3.RouteMatch) *cncfmatcherv3.Matcher_Mat
 	}
 
 	for _, h := range rm.GetHeaders() {
-		var sm *cncfmatcherv3.StringMatcher
-		switch hs := h.GetHeaderMatchSpecifier().(type) {
-		case *envoyroutev3.HeaderMatcher_StringMatch:
-			sm = envoyStringMatcherToXDS(hs.StringMatch)
-		case *envoyroutev3.HeaderMatcher_ExactMatch:
-			sm = &cncfmatcherv3.StringMatcher{MatchPattern: &cncfmatcherv3.StringMatcher_Exact{Exact: hs.ExactMatch}}
-		case *envoyroutev3.HeaderMatcher_PrefixMatch:
-			sm = &cncfmatcherv3.StringMatcher{MatchPattern: &cncfmatcherv3.StringMatcher_Prefix{Prefix: hs.PrefixMatch}}
-		}
+		// Route translation only emits StringMatch header matchers.
+		sm := envoyStringMatcherToXDS(h.GetStringMatch())
 		if sm == nil || h.GetInvertMatch() {
 			continue
 		}
@@ -341,8 +335,8 @@ func (p *trafficPolicyPluginGwPass) rateLimitQuotaHttpFilter(fcn string) *filter
 		// Stable output: exact paths before prefixes so the most specific wins,
 		// then lexical.
 		matchers := append([]*cncfmatcherv3.Matcher_MatcherList_FieldMatcher(nil), chain.matchers...)
-		sort.SliceStable(matchers, func(i, j int) bool {
-			return matcherSortKey(matchers[i]) < matcherSortKey(matchers[j])
+		slices.SortStableFunc(matchers, func(a, b *cncfmatcherv3.Matcher_MatcherList_FieldMatcher) int {
+			return cmp.Compare(matcherSortKey(a), matcherSortKey(b))
 		})
 		matcher.MatcherType = &cncfmatcherv3.Matcher_MatcherList_{
 			MatcherList: &cncfmatcherv3.Matcher_MatcherList{Matchers: matchers},
