@@ -1892,31 +1892,58 @@ spec:
                       and the RLQS pushes back the rate limit to enforce for that bucket.
                     properties:
                       bucket:
-                        additionalProperties:
-                          type: string
                         description: |-
-                          Bucket is the set of static key/value pairs identifying the quota bucket
-                          that requests matching the attached route(s) are accounted against. The
-                          RLQS uses the full set of entries as the bucket identity, so distinct
-                          paths/services should use distinct bucket values.
-                        maxProperties: 16
-                        minProperties: 1
-                        type: object
-                      bucketFromHeaders:
-                        additionalProperties:
-                          type: string
-                        description: |-
-                          BucketFromHeaders adds dynamic entries to the bucket identity: each key is
-                          set to the value of the named request header, evaluated per request. This
-                          lets a single policy fan out into per-tenant buckets (e.g. an org id
-                          header) that the RLQS can assign distinct quotas to. Requests missing the
-                          header do not resolve to a bucket and are allowed. Keys must not overlap
-                          with Bucket.
-                        maxProperties: 16
-                        type: object
-                        x-kubernetes-validations:
-                        - message: header names must not be empty
-                          rule: self.all(k, size(self[k]) > 0)
+                          Bucket is the list of entries that together identify the quota bucket
+                          requests matching the attached route(s) are accounted against. Each entry
+                          contributes one key to the bucket id, either with a static value (Generic)
+                          or a value taken from the request (Header), so one policy can fan out into
+                          per-tenant buckets the RLQS assigns distinct quotas to. The RLQS uses the
+                          full set of resolved entries as the bucket identity, so distinct
+                          paths/services should use distinct static entries.
+                        items:
+                          description: |-
+                            RateLimitQuotaBucketEntry defines a single key of the quota bucket id.
+                            Only the field matching Type may be specified.
+                          properties:
+                            header:
+                              description: |-
+                                Header is the request header whose value is used for this entry, evaluated
+                                per request. Must be set when Type is Header. When the header is absent
+                                the key is omitted from the bucket id, so such requests share the bucket
+                                made of the remaining entries.
+                              minLength: 1
+                              type: string
+                            key:
+                              description: Key is the name of this entry in the bucket
+                                id.
+                              minLength: 1
+                              type: string
+                            type:
+                              description: Type specifies how the entry's value is
+                                produced.
+                              enum:
+                              - Generic
+                              - Header
+                              type: string
+                            value:
+                              description: Value is the static value for this entry.
+                                Must be set when Type is Generic.
+                              minLength: 1
+                              type: string
+                          required:
+                          - key
+                          - type
+                          type: object
+                          x-kubernetes-validations:
+                          - message: exactly one entry type must be specified
+                            rule: (self.type == 'Generic' && has(self.value) && !has(self.header))
+                              || (self.type == 'Header' && has(self.header) && !has(self.value))
+                        maxItems: 16
+                        minItems: 1
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - key
+                        x-kubernetes-list-type: map
                       denyStatus:
                         default: 429
                         description: |-
@@ -1975,10 +2002,6 @@ spec:
                     - bucket
                     - extensionRef
                     type: object
-                    x-kubernetes-validations:
-                    - message: bucket and bucketFromHeaders keys must not overlap
-                      rule: '!has(self.bucketFromHeaders) || !self.bucket.exists(k,
-                        k in self.bucketFromHeaders)'
                 type: object
               rbac:
                 description: |-

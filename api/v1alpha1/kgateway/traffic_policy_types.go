@@ -408,32 +408,25 @@ type RateLimit struct {
 
 // RateLimitQuotaPolicy defines a quota-based rate limiting policy using an
 // external Rate Limit Quota Service (RLQS).
-// +kubebuilder:validation:XValidation:rule="!has(self.bucketFromHeaders) || !self.bucket.exists(k, k in self.bucketFromHeaders)",message="bucket and bucketFromHeaders keys must not overlap"
 type RateLimitQuotaPolicy struct {
 	// ExtensionRef references a GatewayExtension of type RateLimitQuota that
 	// provides the RLQS server and quota domain.
 	// +required
 	ExtensionRef shared.NamespacedObjectReference `json:"extensionRef"`
 
-	// Bucket is the set of static key/value pairs identifying the quota bucket
-	// that requests matching the attached route(s) are accounted against. The
-	// RLQS uses the full set of entries as the bucket identity, so distinct
-	// paths/services should use distinct bucket values.
+	// Bucket is the list of entries that together identify the quota bucket
+	// requests matching the attached route(s) are accounted against. Each entry
+	// contributes one key to the bucket id, either with a static value (Generic)
+	// or a value taken from the request (Header), so one policy can fan out into
+	// per-tenant buckets the RLQS assigns distinct quotas to. The RLQS uses the
+	// full set of resolved entries as the bucket identity, so distinct
+	// paths/services should use distinct static entries.
 	// +required
-	// +kubebuilder:validation:MinProperties=1
-	// +kubebuilder:validation:MaxProperties=16
-	Bucket map[string]string `json:"bucket"`
-
-	// BucketFromHeaders adds dynamic entries to the bucket identity: each key is
-	// set to the value of the named request header, evaluated per request. This
-	// lets a single policy fan out into per-tenant buckets (e.g. an org id
-	// header) that the RLQS can assign distinct quotas to. Requests missing the
-	// header do not resolve to a bucket and are allowed. Keys must not overlap
-	// with Bucket.
-	// +optional
-	// +kubebuilder:validation:MaxProperties=16
-	// +kubebuilder:validation:XValidation:rule="self.all(k, size(self[k]) > 0)",message="header names must not be empty"
-	BucketFromHeaders map[string]string `json:"bucketFromHeaders,omitempty"`
+	// +kubebuilder:validation:MinItems=1
+	// +kubebuilder:validation:MaxItems=16
+	// +listType=map
+	// +listMapKey=key
+	Bucket []RateLimitQuotaBucketEntry `json:"bucket"`
 
 	// ReportingInterval is how often Envoy reports bucket usage to the RLQS.
 	// Quota assignments are pushed by the RLQS in response to reports, so
@@ -460,6 +453,45 @@ type RateLimitQuotaPolicy struct {
 	// +kubebuilder:validation:Minimum=400
 	// +kubebuilder:validation:Maximum=599
 	DenyStatus *uint32 `json:"denyStatus,omitempty"`
+}
+
+// RateLimitQuotaBucketEntryType defines how a bucket entry's value is produced.
+// +kubebuilder:validation:Enum=Generic;Header
+type RateLimitQuotaBucketEntryType string
+
+const (
+	// RateLimitQuotaBucketEntryTypeGeneric uses a static value.
+	RateLimitQuotaBucketEntryTypeGeneric RateLimitQuotaBucketEntryType = "Generic"
+
+	// RateLimitQuotaBucketEntryTypeHeader uses the value of a request header.
+	RateLimitQuotaBucketEntryTypeHeader RateLimitQuotaBucketEntryType = "Header"
+)
+
+// RateLimitQuotaBucketEntry defines a single key of the quota bucket id.
+// Only the field matching Type may be specified.
+// +kubebuilder:validation:XValidation:message="exactly one entry type must be specified",rule="(self.type == 'Generic' && has(self.value) && !has(self.header)) || (self.type == 'Header' && has(self.header) && !has(self.value))"
+type RateLimitQuotaBucketEntry struct {
+	// Key is the name of this entry in the bucket id.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	Key string `json:"key"`
+
+	// Type specifies how the entry's value is produced.
+	// +required
+	Type RateLimitQuotaBucketEntryType `json:"type"`
+
+	// Value is the static value for this entry. Must be set when Type is Generic.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	Value *string `json:"value,omitempty"`
+
+	// Header is the request header whose value is used for this entry, evaluated
+	// per request. Must be set when Type is Header. When the header is absent
+	// the key is omitted from the bucket id, so such requests share the bucket
+	// made of the remaining entries.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	Header *string `json:"header,omitempty"`
 }
 
 // RateLimitQuotaFallback is the behavior applied when no quota assignment is available.

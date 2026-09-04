@@ -59,9 +59,12 @@ spec:
       extensionRef:
         name: rlqs
       bucket:
-        route: fast
-      bucketFromHeaders:
-        org: x-modal-org-id
+      - key: route
+        type: Generic
+        value: fast
+      - key: org
+        type: Header
+        header: x-modal-org-id
       reportingInterval: 2s
       noAssignmentBehavior: Deny
       denyStatus: 503
@@ -81,7 +84,9 @@ spec:
       extensionRef:
         name: rlqs
       bucket:
-        route: slow
+      - key: route
+        type: Generic
+        value: slow
 ---
 apiVersion: gateway.kgateway.dev/v1alpha1
 kind: GatewayExtension
