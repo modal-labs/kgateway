@@ -15,6 +15,7 @@ import (
 	envoy_ext_authz_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_authz/v3"
 	envoyextprocv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ext_proc/v3"
 	envoyjwtauthnv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/jwt_authn/v3"
+	rlqsv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/rate_limit_quota/v3"
 	ratev3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/ratelimit/v3"
 	envoynetworkv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/matching/common_inputs/network/v3"
 	envoymetadatav3 "github.com/envoyproxy/go-control-plane/envoy/extensions/matching/input_matchers/metadata/v3"
@@ -40,6 +41,7 @@ type TrafficPolicyGatewayExtensionIR struct {
 	ExtAuth          *envoy_ext_authz_v3.ExtAuthz
 	ExtProc          *envoymatchingv3.ExtensionWithMatcher
 	RateLimit        *ratev3.RateLimit
+	RateLimitQuota   *rlqsv3.RateLimitQuotaFilterConfig
 	Jwt              *envoymatchingv3.ExtensionWithMatcher
 	OAuth2           *oauthPerProviderConfig
 	PrecedenceWeight int32
@@ -60,6 +62,9 @@ func (e TrafficPolicyGatewayExtensionIR) Equals(other TrafficPolicyGatewayExtens
 		return false
 	}
 	if !proto.Equal(e.RateLimit, other.RateLimit) {
+		return false
+	}
+	if !proto.Equal(e.RateLimitQuota, other.RateLimitQuota) {
 		return false
 	}
 	if !proto.Equal(e.Jwt, other.Jwt) {
@@ -205,6 +210,13 @@ func TranslateGatewayExtensionBuilder(
 			rateLimitConfig := buildRateLimitFilter(grpcService, gExt.RateLimit)
 
 			p.RateLimit = rateLimitConfig
+		case gExt.RateLimitQuota != nil:
+			grpcService, err := ResolveExtGrpcService(krtctx, commoncol.BackendIndex, false, gExt.ObjectSource, &gExt.RateLimitQuota.GrpcService)
+			if err != nil {
+				p.Err = fmt.Errorf("ratelimit quota: %w", err)
+				return p
+			}
+			p.RateLimitQuota = buildRateLimitQuotaFilter(grpcService, gExt.RateLimitQuota)
 		case gExt.JWT != nil:
 			jwtConfig, err := resolveJwtProviders(
 				krtctx,

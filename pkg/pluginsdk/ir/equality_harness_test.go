@@ -461,6 +461,12 @@ func TestHarnessGatewayExtensionEquals(t *testing.T) {
 			},
 		},
 		{
+			Field: "RateLimitQuota",
+			Mutate: func(e *GatewayExtension) {
+				e.RateLimitQuota = &kgateway.RateLimitQuotaProvider{Domain: "quota-domain"}
+			},
+		},
+		{
 			Field: "JWT",
 			Mutate: func(e *GatewayExtension) {
 				e.JWT = &kgateway.JWT{}

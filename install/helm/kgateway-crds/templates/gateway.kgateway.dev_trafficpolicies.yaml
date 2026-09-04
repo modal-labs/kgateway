@@ -1884,6 +1884,82 @@ spec:
                         - maxTokens
                         type: object
                     type: object
+                  quota:
+                    description: |-
+                      Quota defines a quota-based rate limiting policy using an external
+                      Rate Limit Quota Service (RLQS). Requests matched by the route(s) this
+                      policy attaches to are reported to the RLQS under the configured bucket,
+                      and the RLQS pushes back the rate limit to enforce for that bucket.
+                    properties:
+                      bucket:
+                        additionalProperties:
+                          type: string
+                        description: |-
+                          Bucket is the set of static key/value pairs identifying the quota bucket
+                          that requests matching the attached route(s) are accounted against. The
+                          RLQS uses the full set of entries as the bucket identity, so distinct
+                          paths/services should use distinct bucket values.
+                        maxProperties: 16
+                        minProperties: 1
+                        type: object
+                      denyStatus:
+                        default: 429
+                        description: |-
+                          DenyStatus is the HTTP status returned when a request is rate limited.
+                          Defaults to 429.
+                        format: int32
+                        maximum: 599
+                        minimum: 400
+                        type: integer
+                      extensionRef:
+                        description: |-
+                          ExtensionRef references a GatewayExtension of type RateLimitQuota that
+                          provides the RLQS server and quota domain.
+                        properties:
+                          name:
+                            description: The name of the target resource.
+                            maxLength: 253
+                            minLength: 1
+                            type: string
+                          namespace:
+                            description: |-
+                              The namespace of the target resource.
+                              If not set, defaults to the namespace of the parent object.
+                            maxLength: 63
+                            minLength: 1
+                            pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      noAssignmentBehavior:
+                        default: Allow
+                        description: |-
+                          NoAssignmentBehavior controls what happens to requests before the RLQS has
+                          assigned a quota to the bucket (e.g. right after Envoy starts, or while the
+                          RLQS is unreachable). Allow lets requests through (fail-open); Deny
+                          rejects them. Defaults to Allow.
+                        enum:
+                        - Allow
+                        - Deny
+                        type: string
+                      reportingInterval:
+                        default: 5s
+                        description: |-
+                          ReportingInterval is how often Envoy reports bucket usage to the RLQS.
+                          Quota assignments are pushed by the RLQS in response to reports, so
+                          enforcement is eventually consistent at this granularity.
+                          Defaults to 5s.
+                        type: string
+                        x-kubernetes-validations:
+                        - message: invalid duration value
+                          rule: matches(self, '^([0-9]{1,5}(h|m|s|ms)){1,4}$')
+                        - message: must be greater than 100ms
+                          rule: duration(self) > duration('100ms')
+                    required:
+                    - bucket
+                    - extensionRef
+                    type: object
                 type: object
               rbac:
                 description: |-

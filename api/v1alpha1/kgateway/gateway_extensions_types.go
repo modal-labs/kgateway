@@ -40,16 +40,17 @@ type NamedJWTProvider struct {
 }
 
 // GatewayExtensionSpec defines the desired state of GatewayExtension.
-// +kubebuilder:validation:ExactlyOneOf=extAuth;extProc;rateLimit;jwt;oauth2
+// +kubebuilder:validation:ExactlyOneOf=extAuth;extProc;rateLimit;rateLimitQuota;jwt;oauth2
 // +kubebuilder:validation:XValidation:message="extAuth must be set when type is ExtAuth",rule="has(self.type) && self.type == 'ExtAuth' ? has(self.extAuth) : true"
 // +kubebuilder:validation:XValidation:message="extProc must be set when type is ExtProc",rule="has(self.type) && self.type == 'ExtProc' ? has(self.extProc) : true"
 // +kubebuilder:validation:XValidation:message="rateLimit must be set when type is RateLimit",rule="has(self.type) && self.type == 'RateLimit' ? has(self.rateLimit) : true"
 // +kubebuilder:validation:XValidation:message="JWT must be set when type is JWT",rule="has(self.type) && self.type == 'JWT' ? has(self.jwt) : true"
 // +kubebuilder:validation:XValidation:message="oauth2 must be set when type is OAuth2",rule="has(self.type) && self.type == 'OAuth2' ? has(self.oauth2) : true"
+// +kubebuilder:validation:XValidation:message="rateLimitQuota must be set when type is RateLimitQuota",rule="has(self.type) && self.type == 'RateLimitQuota' ? has(self.rateLimitQuota) : true"
 type GatewayExtensionSpec struct {
 	// Deprecated: Setting this field has no effect.
 	// Type indicates the type of the GatewayExtension to be used.
-	// +kubebuilder:validation:Enum=ExtAuth;ExtProc;RateLimit;JWT;OAuth2
+	// +kubebuilder:validation:Enum=ExtAuth;ExtProc;RateLimit;RateLimitQuota;JWT;OAuth2
 	// +optional
 	Type *GatewayExtensionType `json:"type,omitempty"`
 
@@ -64,6 +65,10 @@ type GatewayExtensionSpec struct {
 	// RateLimit configuration for RateLimit extension type.
 	// +optional
 	RateLimit *RateLimitProvider `json:"rateLimit,omitempty"`
+
+	// RateLimitQuota configuration for RateLimitQuota extension type.
+	// +optional
+	RateLimitQuota *RateLimitQuotaProvider `json:"rateLimitQuota,omitempty"`
 
 	// JWT configuration for JWT extension type.
 	// +optional
@@ -119,6 +124,8 @@ const (
 	GatewayExtensionTypeJWT GatewayExtensionType = "JWT"
 	// GatewayExtensionTypeOAuth2 is the type for OAuth2 extensions.
 	GatewayExtensionTypeOAuth2 GatewayExtensionType = "OAuth2"
+	// GatewayExtensionTypeRateLimitQuota is the type for RateLimitQuota (RLQS) extensions.
+	GatewayExtensionTypeRateLimitQuota GatewayExtensionType = "RateLimitQuota"
 )
 
 const HTTPDefaultTimeout = 2 * time.Second
@@ -274,6 +281,22 @@ type RateLimitProvider struct {
 	// +kubebuilder:default="Off"
 	// +optional
 	XRateLimitHeaders XRateLimitHeadersStandard `json:"xRateLimitHeaders,omitempty"`
+}
+
+// RateLimitQuotaProvider configures a Rate Limit Quota Service (RLQS) that Envoy's
+// rate_limit_quota filter streams bucket usage reports to and receives quota
+// assignments from.
+// See https://www.envoyproxy.io/docs/envoy/latest/configuration/http/http_filters/rate_limit_quota_filter
+type RateLimitQuotaProvider struct {
+	// GrpcService is the GRPC service implementing envoy.service.rate_limit_quota.v3.RateLimitQuotaService.
+	// +required
+	GrpcService ExtGrpcService `json:"grpcService"`
+
+	// Domain is a globally unique identifier for a set of quota buckets. All buckets
+	// reported by a filter using this extension share this domain.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	Domain string `json:"domain"`
 }
 
 // XRateLimitHeadersStandard controls how XRateLimit headers will emitted.

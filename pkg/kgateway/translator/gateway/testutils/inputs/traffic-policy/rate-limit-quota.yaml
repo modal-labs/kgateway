@@ -1,0 +1,120 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: example-gateway
+spec:
+  gatewayClassName: example-gateway-class
+  listeners:
+  - name: http
+    protocol: HTTP
+    port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: example-route
+spec:
+  parentRefs:
+  - name: example-gateway
+  hostnames:
+  - "example.com"
+  rules:
+  - name: fast
+    matches:
+    - path:
+        type: Exact
+        value: /modal.internal.ModalWorkers/TaskHeartbeat
+    backendRefs:
+    - name: example-svc
+      port: 80
+  - name: slow
+    matches:
+    - path:
+        type: PathPrefix
+        value: /modal.internal.ModalWorkers/
+    backendRefs:
+    - name: example-svc
+      port: 80
+  - name: unlimited
+    matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: example-svc
+      port: 80
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: quota-fast
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: example-route
+    sectionName: fast
+  rateLimit:
+    quota:
+      extensionRef:
+        name: rlqs
+      bucket:
+        route: fast
+      reportingInterval: 2s
+      noAssignmentBehavior: Deny
+      denyStatus: 503
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: quota-slow
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: example-route
+    sectionName: slow
+  rateLimit:
+    quota:
+      extensionRef:
+        name: rlqs
+      bucket:
+        route: slow
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: GatewayExtension
+metadata:
+  name: rlqs
+spec:
+  type: RateLimitQuota
+  rateLimitQuota:
+    grpcService:
+      backendRef:
+        name: rlqs
+        port: 18081
+    domain: "example"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rlqs
+spec:
+  ports:
+  - port: 18081
+    name: grpc
+    targetPort: 18081
+    appProtocol: kubernetes.io/h2c
+  selector:
+    app: rlqs
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: example-svc
+spec:
+  selector:
+    test: test
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: test

@@ -397,7 +397,67 @@ type RateLimit struct {
 	// Global defines a global rate limiting policy using an external service.
 	// +optional
 	Global *RateLimitPolicy `json:"global,omitempty"`
+
+	// Quota defines a quota-based rate limiting policy using an external
+	// Rate Limit Quota Service (RLQS). Requests matched by the route(s) this
+	// policy attaches to are reported to the RLQS under the configured bucket,
+	// and the RLQS pushes back the rate limit to enforce for that bucket.
+	// +optional
+	Quota *RateLimitQuotaPolicy `json:"quota,omitempty"`
 }
+
+// RateLimitQuotaPolicy defines a quota-based rate limiting policy using an
+// external Rate Limit Quota Service (RLQS).
+type RateLimitQuotaPolicy struct {
+	// ExtensionRef references a GatewayExtension of type RateLimitQuota that
+	// provides the RLQS server and quota domain.
+	// +required
+	ExtensionRef shared.NamespacedObjectReference `json:"extensionRef"`
+
+	// Bucket is the set of static key/value pairs identifying the quota bucket
+	// that requests matching the attached route(s) are accounted against. The
+	// RLQS uses the full set of entries as the bucket identity, so distinct
+	// paths/services should use distinct bucket values.
+	// +required
+	// +kubebuilder:validation:MinProperties=1
+	// +kubebuilder:validation:MaxProperties=16
+	Bucket map[string]string `json:"bucket"`
+
+	// ReportingInterval is how often Envoy reports bucket usage to the RLQS.
+	// Quota assignments are pushed by the RLQS in response to reports, so
+	// enforcement is eventually consistent at this granularity.
+	// Defaults to 5s.
+	// +optional
+	// +kubebuilder:default="5s"
+	// +kubebuilder:validation:XValidation:rule="matches(self, '^([0-9]{1,5}(h|m|s|ms)){1,4}$')",message="invalid duration value"
+	// +kubebuilder:validation:XValidation:rule="duration(self) > duration('100ms')",message="must be greater than 100ms"
+	ReportingInterval *metav1.Duration `json:"reportingInterval,omitempty"`
+
+	// NoAssignmentBehavior controls what happens to requests before the RLQS has
+	// assigned a quota to the bucket (e.g. right after Envoy starts, or while the
+	// RLQS is unreachable). Allow lets requests through (fail-open); Deny
+	// rejects them. Defaults to Allow.
+	// +optional
+	// +kubebuilder:default=Allow
+	NoAssignmentBehavior *RateLimitQuotaFallback `json:"noAssignmentBehavior,omitempty"`
+
+	// DenyStatus is the HTTP status returned when a request is rate limited.
+	// Defaults to 429.
+	// +optional
+	// +kubebuilder:default=429
+	// +kubebuilder:validation:Minimum=400
+	// +kubebuilder:validation:Maximum=599
+	DenyStatus *uint32 `json:"denyStatus,omitempty"`
+}
+
+// RateLimitQuotaFallback is the behavior applied when no quota assignment is available.
+// +kubebuilder:validation:Enum=Allow;Deny
+type RateLimitQuotaFallback string
+
+const (
+	RateLimitQuotaFallbackAllow RateLimitQuotaFallback = "Allow"
+	RateLimitQuotaFallbackDeny  RateLimitQuotaFallback = "Deny"
+)
 
 // LocalRateLimitPolicy represents a policy for local rate limiting.
 // It defines the configuration for rate limiting using a token bucket mechanism.
