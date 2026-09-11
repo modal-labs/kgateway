@@ -1,0 +1,19 @@
+# Phase 1: a plain per-route token bucket, shared across all replicas of the
+# Gateway (local_cluster_rate_limit). 10 requests / 10s for the whole route.
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: toy-route-ratelimit
+  namespace: demo
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: toy-route
+  rateLimit:
+    local:
+      shareAcrossGateway: true
+      tokenBucket:
+        maxTokens: 10
+        tokensPerFill: 10
+        fillInterval: 10s
