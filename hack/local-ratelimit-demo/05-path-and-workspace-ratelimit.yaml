@@ -1,0 +1,55 @@
+# Phase 2 (variant): one route, buckets keyed on (path, workspace).
+#
+# A single catch-all HTTPRoute whose policy has a two-entry descriptor
+# [Path, Header x-workspace-id]. Envoy creates a dynamic bucket per distinct
+# (path, workspace) pair, so /v1/a and /v1/b are limited independently for the
+# same workspace without needing a route per path.
+#
+# Note: the Path entry uses the full :path pseudo-header, so query strings
+# create distinct buckets. Prefer per-route policies (04-*.yaml) when the
+# routes are already split.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: v1-api
+  namespace: demo
+spec:
+  parentRefs:
+  - name: demo-gw
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /v1/
+    backendRefs:
+    - name: toy-server
+      port: 8080
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: v1-api-path-workspace-ratelimit
+  namespace: demo
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: v1-api
+  rateLimit:
+    local:
+      shareAcrossGateway: true
+      tokenBucket:
+        maxTokens: 100
+        tokensPerFill: 100
+        fillInterval: 30s
+      descriptors:
+      - entries:
+        - type: Path
+        - type: Header
+          header: x-workspace-id
+        tokenBucket:
+          maxTokens: 2
+          tokensPerFill: 2
+          fillInterval: 30s
+      alwaysConsumeDefaultTokenBucket: false
+      maxDynamicDescriptors: 1000
