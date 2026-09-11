@@ -35,6 +35,24 @@ local cluster).
 kubectl -n demo scale deploy/demo-gw --replicas=2
 ```
 
+## Phase 2: per-workspace buckets per route (descriptors)
+
+```bash
+kubectl apply -f hack/local-ratelimit-demo/04-workspace-route-ratelimit.yaml \
+              -f hack/local-ratelimit-demo/05-path-and-workspace-ratelimit.yaml
+C="go run ./hack/local-ratelimit-demo/client"
+$C -url http://127.0.0.1:8080/api/foo -n 6 -header x-workspace-id=ws-a   # 4x200 then 429 (1 replica)
+$C -url http://127.0.0.1:8080/api/foo -n 6 -header x-workspace-id=ws-b   # independent bucket
+$C -url http://127.0.0.1:8080/api/bar -n 10 -header x-workspace-id=ws-a  # 8x200 then 429
+$C -url http://127.0.0.1:8080/api/foo -n 6                               # no header: only the 100/30s default
+$C -url http://127.0.0.1:8080/v1/a -n 3 -header x-workspace-id=ws-a      # (path, workspace) bucket: 2x200
+$C -url http://127.0.0.1:8080/v1/b -n 3 -header x-workspace-id=ws-a      # different path, fresh bucket
+```
+
+With `shareAcrossGateway: true` the descriptor buckets are divided across
+replicas too: at 2 replicas each pod admits 2 for `/api/foo` and 4 for `/api/bar`
+per workspace (observed in minikube).
+
 ## Inspecting Envoy
 
 ```bash
