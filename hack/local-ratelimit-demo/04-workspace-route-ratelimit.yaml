@@ -1,0 +1,101 @@
+# Phase 2: per-workspace rate limits per route.
+#
+# Two routes on the same Gateway, each with its own TrafficPolicy. Each policy
+# has a generous per-route default bucket and a descriptor keyed on the
+# x-workspace-id header, so every distinct workspace gets its own bucket on
+# every route. Buckets are shared across all Gateway replicas.
+#
+#   /api/foo  ->  4 req / 30s per workspace   (plus 100 req / 30s route-wide)
+#   /api/bar  ->  8 req / 30s per workspace   (plus 100 req / 30s route-wide)
+#
+# Requests without x-workspace-id don't match the descriptor and only consume
+# the route-wide default bucket.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: api-foo
+  namespace: demo
+spec:
+  parentRefs:
+  - name: demo-gw
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /api/foo
+    backendRefs:
+    - name: toy-server
+      port: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: api-bar
+  namespace: demo
+spec:
+  parentRefs:
+  - name: demo-gw
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /api/bar
+    backendRefs:
+    - name: toy-server
+      port: 8080
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: api-foo-workspace-ratelimit
+  namespace: demo
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: api-foo
+  rateLimit:
+    local:
+      shareAcrossGateway: true
+      tokenBucket:
+        maxTokens: 100
+        tokensPerFill: 100
+        fillInterval: 30s
+      descriptors:
+      - entries:
+        - type: Header
+          header: x-workspace-id
+        tokenBucket:
+          maxTokens: 4
+          tokensPerFill: 4
+          fillInterval: 30s
+      alwaysConsumeDefaultTokenBucket: false
+      maxDynamicDescriptors: 1000
+---
+apiVersion: gateway.kgateway.dev/v1alpha1
+kind: TrafficPolicy
+metadata:
+  name: api-bar-workspace-ratelimit
+  namespace: demo
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: api-bar
+  rateLimit:
+    local:
+      shareAcrossGateway: true
+      tokenBucket:
+        maxTokens: 100
+        tokensPerFill: 100
+        fillInterval: 30s
+      descriptors:
+      - entries:
+        - type: Header
+          header: x-workspace-id
+        tokenBucket:
+          maxTokens: 8
+          tokensPerFill: 8
+          fillInterval: 30s
+      alwaysConsumeDefaultTokenBucket: false
+      maxDynamicDescriptors: 1000
