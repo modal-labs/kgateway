@@ -53,6 +53,29 @@ With `shareAcrossGateway: true` the descriptor buckets are divided across
 replicas too: at 2 replicas each pod admits 2 for `/api/foo` and 4 for `/api/bar`
 per workspace (observed in minikube).
 
+## Phase 3: JWT claim -> header -> descriptor, answered at the edge
+
+`06-jwt-workspace-probe.yaml` models the Modal input-plane setup: a JWT is
+required (Strict), the `workspace_id` claim is copied to `x-modal-workspace-id`
+via `claimsToHeaders`, and a `[Header x-modal-workspace-id]` descriptor limits
+each workspace to 4 req/30s across the gateway. The route is a `DirectResponse`
+so no backend is involved. Needs a JWKS ConfigMap and signed tokens; e.g. with
+Python (`cryptography` + `pyjwt`) generate an RSA key, write the public JWK set
+to `jwks.json`, and sign `{"iss":"https://modal-demo","aud":"input-plane",
+"workspace_id":"ws-a",...}` with `kid: demo`.
+
+```bash
+kubectl -n demo create configmap demo-jwks --from-file=jwks=jwks.json
+kubectl apply -f hack/local-ratelimit-demo/06-jwt-workspace-probe.yaml
+U=http://127.0.0.1:8080/modal.client.ModalClient/RateLimitProbe
+curl -s -o /dev/null -w "%{http_code}\n" $U                                 # 401 (no token)
+$C -url $U -n 6 -header "x-modal-auth-token=$(cat token-ws-a)"              # 4x200 then 429 (1 replica)
+$C -url $U -n 6 -header "x-modal-auth-token=$(cat token-ws-b)"              # independent bucket
+```
+
+Observed in minikube with 2 replicas: 401 without/with a bad token; per pod
+`200 200 429 429` for ws-a, ws-b independent, body `probe ok`.
+
 ## Inspecting Envoy
 
 ```bash
