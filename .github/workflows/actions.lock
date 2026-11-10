@@ -3,29 +3,164 @@
 # Docs: https://gh.io/actions-lockfile
 version: 'v0.0.3'
 workflows:
+    '.github/workflows/auto-merge.yaml':
+        - 'actions/checkout@v4.3.1'
+    '.github/workflows/build-tools.yaml':
+        - 'actions/checkout@v4.3.1'
+        - 'docker/build-push-action@v6.18.0'
+        - 'docker/login-action@v3.4.0'
+        - 'docker/setup-buildx-action@v3.10.0'
+        - 'docker/setup-qemu-action@v3.6.0'
+    '.github/workflows/cache-eviction.yaml':
+        - 'actions/checkout@v4.3.1'
+    '.github/workflows/cache-setup.yaml':
+        - 'actions/cache@v4.3.0'
+        - 'actions/checkout@v4.3.1'
+    '.github/workflows/check-labels.yaml': []
+    '.github/workflows/conformance.yaml':
+        - 'actions/checkout@v4.3.1'
+        - 'falti/dotenv-action@v1.1.4'
+    '.github/workflows/devcontainer-smoke.yaml':
+        - 'actions/checkout@v4.3.1'
+        - 'actions/upload-artifact@v4.6.2'
+    '.github/workflows/e2e.yaml':
+        - 'actions/cache@v4.3.0'
+        - 'actions/checkout@v4.3.1'
+        - 'actions/download-artifact@v4.3.0'
+        - 'actions/upload-artifact@v4.6.2'
+        - 'docker/setup-buildx-action@v3.10.0'
+        - 'falti/dotenv-action@v1.1.4'
+    '.github/workflows/flake-validation.yaml':
+        - 'actions/cache@v4.3.0'
+        - 'actions/checkout@v4.3.1'
+        - 'actions/download-artifact@v4.3.0'
+        - 'actions/upload-artifact@v4.6.2'
+        - 'docker/setup-buildx-action@v3.10.0'
+        - 'falti/dotenv-action@v1.1.4'
+    '.github/workflows/labeler.yaml':
+        - 'actions/checkout@v4.3.1'
+        - 'kgateway-dev/pr-kind-labeler@main'
+    '.github/workflows/lint.yaml':
+        - 'actions-rust-lang/setup-rust-toolchain@v1.15.4'
+        - 'actions/checkout@v4.3.1'
+        - 'actions/setup-go@v6.2.0'
+    '.github/workflows/merge-queue-delete.yaml':
+        - 'actions/checkout@v4.3.1'
     '.github/workflows/modal-envoy-wrapper.yaml':
         - 'actions/checkout@v4.3.1'
         - 'actions/setup-go@v6.2.0'
         - 'aws-actions/configure-aws-credentials@v6.3.0'
         - 'docker/setup-buildx-action@v3.10.0'
+    '.github/workflows/nightly-tests.yaml':
+        - 'actions/checkout@v4.3.1'
+        - 'falti/dotenv-action@v1.1.4'
+    '.github/workflows/osv-scanner.yaml':
+        - 'actions/checkout@v4.3.1'
+        - 'github/codeql-action@v4.31.10'
+        - 'google/osv-scanner-action@v2.3.5'
+    '.github/workflows/release.yaml':
+        - 'actions/checkout@v4.3.1'
+        - 'actions/download-artifact@v4.3.0'
+        - 'actions/upload-artifact@v4.6.2'
+        - 'docker/login-action@v3.4.0'
+        - 'docker/setup-buildx-action@v3.10.0'
+        - 'docker/setup-qemu-action@v3.6.0'
+    '.github/workflows/retest.yaml':
+        - 'actions/checkout@v4.3.1'
+    '.github/workflows/stalebot.yaml':
+        - 'actions/stale@v10.3.0'
+    '.github/workflows/unit.yaml':
+        - 'actions/cache@v4.3.0'
+        - 'actions/checkout@v4.3.1'
+        - 'actions/setup-go@v6.2.0'
+        - 'docker/setup-buildx-action@v3.10.0'
+    '.github/workflows/verify.yaml':
+        - 'actions/checkout@v4.3.1'
 dependencies:
+    'actions-rust-lang/setup-rust-toolchain@v1.15.4':
+        ref: 'v1.15.4'
+        commit: 'sha1-150fca883cd4034361b621bd4e6a9d34e5143606'
+        owner_id: 103899579
+        repo_id: 482610590
+        uses:
+            - 'swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4'
+    'actions/cache@v4.3.0':
+        ref: 'v4.3.0'
+        commit: 'sha1-0057852bfaa89a56745cba8c7296529d2fc39830'
+        owner_id: 44036562
+        repo_id: 215566462
     'actions/checkout@v4.3.1':
         ref: 'v4.3.1'
         commit: 'sha1-34e114876b0b11c390a56381ad16ebd13914f8d5'
         owner_id: 44036562
         repo_id: 197814629
+    'actions/download-artifact@v4.3.0':
+        ref: 'v4.3.0'
+        commit: 'sha1-d3f86a106a0bac45b974a628896c90dbdf5c8093'
+        owner_id: 44036562
+        repo_id: 192626254
     'actions/setup-go@v6.2.0':
         ref: 'v6.2.0'
         commit: 'sha1-7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5'
         owner_id: 44036562
         repo_id: 192624594
+    'actions/stale@v10.3.0':
+        ref: 'v10.3.0'
+        commit: 'sha1-eb5cf3af3ac0a1aa4c9c45633dd1ae542a27a899'
+        owner_id: 44036562
+        repo_id: 200437066
+    'actions/upload-artifact@v4.6.2':
+        ref: 'v4.6.2'
+        commit: 'sha1-ea165f8d65b6e75b540449e92b4886f43607fa02'
+        owner_id: 44036562
+        repo_id: 192625955
     'aws-actions/configure-aws-credentials@v6.3.0':
         ref: 'v6.3.0'
         commit: 'sha1-e1253824e5c10ff9df46874f81ed3ec929e19cfd'
         owner_id: 57468012
         repo_id: 220391287
+    'docker/build-push-action@v6.18.0':
+        ref: 'v6.18.0'
+        commit: 'sha1-263435318d21b8e681c14492fe198d362a7d2c83'
+        owner_id: 5429470
+        repo_id: 241092383
+    'docker/login-action@v3.4.0':
+        ref: 'v3.4.0'
+        commit: 'sha1-74a5d142397b4f367a81961eba4e8cd7edddf772'
+        owner_id: 5429470
+        repo_id: 287743349
     'docker/setup-buildx-action@v3.10.0':
         ref: 'v3.10.0'
         commit: 'sha1-b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2'
         owner_id: 5429470
         repo_id: 288485773
+    'docker/setup-qemu-action@v3.6.0':
+        ref: 'v3.6.0'
+        commit: 'sha1-29109295f81e9208d7d86ff1c6c12d2833863392'
+        owner_id: 5429470
+        repo_id: 288487894
+    'falti/dotenv-action@v1.1.4':
+        ref: 'v1.1.4'
+        commit: 'sha1-a33be0b8cf6a6e6f1b82cc9f3782061ab1022be5'
+        owner_id: 149012
+        repo_id: 232401338
+    'github/codeql-action@v4.31.10':
+        ref: 'v4.31.10'
+        commit: 'sha1-cdefb33c0f6224e58673d9004f47f7cb3e328b89'
+        owner_id: 9919
+        repo_id: 259445878
+    'google/osv-scanner-action@v2.3.5':
+        ref: 'v2.3.5'
+        commit: 'sha1-c51854704019a247608d928f370c98740469d4b5'
+        owner_id: 1342004
+        repo_id: 736073144
+    'kgateway-dev/pr-kind-labeler@main':
+        ref: 'main'
+        commit: 'sha1-7df01fd3b367aa68271aad255db94693e8f63f68'
+        owner_id: 186092512
+        repo_id: 974994206
+    'swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4':
+        ref: 'v2.9.1'
+        commit: 'sha1-c19371144df3bb44fab255c43d04cbc2ab54d1c4'
+        owner_id: 580492
+        repo_id: 298565987
