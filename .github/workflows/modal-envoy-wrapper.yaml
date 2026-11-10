@@ -32,13 +32,13 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@v4.3.1
       - name: Free disk space
         run: sudo rm -rf /usr/share/dotnet /usr/share/swift /usr/local/.ghcup
-      - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+      - uses: actions/setup-go@v6.2.0
         with:
           go-version-file: go.mod
-      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+      - uses: docker/setup-buildx-action@v3.10.0
 
       - name: Set image tag
         run: echo "TAG=v2.4.1-selective-json-parsing-$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
@@ -55,7 +55,7 @@ jobs:
             VERSION="$TAG-$ARCH"
 
       - name: Assume ECR publisher role
-        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
           role-to-assume: arn:aws:iam::459781239556:role/kgateway-envoy-wrapper-publisher
           aws-region: us-east-1
@@ -73,12 +73,12 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
-      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+      - uses: docker/setup-buildx-action@v3.10.0
       - name: Set image tag
         run: echo "TAG=v2.4.1-selective-json-parsing-${GITHUB_SHA:0:12}" >> "$GITHUB_ENV"
 
       - name: Assume ECR publisher role
-        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        uses: aws-actions/configure-aws-credentials@v6.3.0
         with:
           role-to-assume: arn:aws:iam::459781239556:role/kgateway-envoy-wrapper-publisher
           aws-region: us-east-1
