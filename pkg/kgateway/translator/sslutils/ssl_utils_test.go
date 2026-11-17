@@ -181,6 +181,25 @@ func TestApplyTLSExtensionOptions(t *testing.T) {
 				"unknown tls option: kgateway.dev/min-tls-versions",
 			},
 		},
+		{
+			name: "on_demand_certificates_sds_cluster",
+			out: &ir.TLSConfig{
+				OnDemandCertificatesSdsCluster: "gateway_proxy_sds",
+			},
+			in: map[gwv1.AnnotationKey]gwv1.AnnotationValue{
+				annotations.OnDemandCertificatesSdsCluster: " gateway_proxy_sds ",
+			},
+		},
+		{
+			name: "on_demand_certificates_sds_cluster_empty",
+			out:  &ir.TLSConfig{},
+			in: map[gwv1.AnnotationKey]gwv1.AnnotationValue{
+				annotations.OnDemandCertificatesSdsCluster: " ",
+			},
+			errors: []string{
+				"kgateway.dev/on-demand-certificates-sds-cluster must name an SDS cluster",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -198,6 +217,19 @@ func TestApplyTLSExtensionOptions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestApplyOnDemandCertificatesRejectsCertificateRefs(t *testing.T) {
+	out := &ir.TLSConfig{
+		Certificates: []ir.TLSCertificate{{CertChain: []byte("cert"), PrivateKey: []byte("key")}},
+	}
+
+	err := ApplyTLSExtensionOptions(map[gwv1.AnnotationKey]gwv1.AnnotationValue{
+		annotations.OnDemandCertificatesSdsCluster: "gateway_proxy_sds",
+	}, out)
+
+	assert.ErrorContains(t, err, "cannot be combined with certificateRefs")
+	assert.Empty(t, out.OnDemandCertificatesSdsCluster, "on-demand certificates should not be enabled")
 }
 
 func TestValidateCertificateHash(t *testing.T) {

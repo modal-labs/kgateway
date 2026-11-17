@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	envoycorev3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	envoysnimapperv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/cert_mappers/sni/v3"
+	envoyondemandsecretv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/cert_selectors/on_demand_secret/v3"
 	envoytlsv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	"github.com/stretchr/testify/require"
 
@@ -42,6 +44,21 @@ func TestFilterChainInfoCustomAlpn(t *testing.T) {
 
 	downstream := extractDownstreamTlsContext(t, info.toTransportSocket())
 	require.Equal(t, custom, downstream.GetCommonTlsContext().GetAlpnProtocols())
+}
+
+func TestFilterChainInfoOnDemandCertificates(t *testing.T) {
+	info := &FilterChainInfo{TLS: &ir.TLSConfig{OnDemandCertificatesSdsCluster: "gateway_proxy_sds"}}
+
+	downstream := extractDownstreamTlsContext(t, info.toTransportSocket())
+	common := downstream.GetCommonTlsContext()
+	require.Empty(t, common.GetTlsCertificates(), "certificates should come from SDS")
+	require.True(t, downstream.GetDisableStatelessSessionResumption())
+	require.True(t, downstream.GetDisableStatefulSessionResumption())
+
+	cfg := &envoyondemandsecretv3.Config{}
+	require.NoError(t, common.GetCustomTlsCertificateSelector().GetTypedConfig().UnmarshalTo(cfg))
+	require.Equal(t, "gateway_proxy_sds", cfg.GetConfigSource().GetApiConfigSource().GetGrpcServices()[0].GetEnvoyGrpc().GetClusterName())
+	require.NoError(t, cfg.GetCertificateMapper().GetTypedConfig().UnmarshalTo(&envoysnimapperv3.SNI{}))
 }
 
 func TestFilterChainInfoSingleCertificate(t *testing.T) {
