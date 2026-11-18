@@ -184,10 +184,10 @@ func TestApplyTLSExtensionOptions(t *testing.T) {
 		{
 			name: "on_demand_certificates_sds_cluster",
 			out: &ir.TLSConfig{
-				OnDemandCertificatesSdsCluster: "gateway_proxy_sds",
+				OnDemandCertificatesSdsCluster: "kube_default_cert-service_8234",
 			},
 			in: map[gwv1.AnnotationKey]gwv1.AnnotationValue{
-				annotations.OnDemandCertificatesSdsCluster: " gateway_proxy_sds ",
+				annotations.OnDemandCertificatesSdsCluster: " kube_default_cert-service_8234 ",
 			},
 		},
 		{
@@ -225,7 +225,7 @@ func TestApplyOnDemandCertificatesRejectsCertificateRefs(t *testing.T) {
 	}
 
 	err := ApplyTLSExtensionOptions(map[gwv1.AnnotationKey]gwv1.AnnotationValue{
-		annotations.OnDemandCertificatesSdsCluster: "gateway_proxy_sds",
+		annotations.OnDemandCertificatesSdsCluster: "kube_default_cert-service_8234",
 	}, out)
 
 	assert.ErrorContains(t, err, "cannot be combined with certificateRefs")

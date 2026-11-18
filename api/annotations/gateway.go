@@ -61,9 +61,11 @@ const (
 
 	// OnDemandCertificatesSdsCluster is the annotation key used to load a TLS listener's
 	// certificates on demand from SDS instead of from certificateRefs. The value is the Envoy
-	// cluster that serves SDS, e.g "gateway_proxy_sds". Envoy fetches a secret named after each
-	// SNI the first time it sees it. Cannot be combined with certificateRefs, and disables TLS
-	// session resumption on the listener.
+	// cluster that serves SDS, such as the cluster kgateway creates for a Kubernetes Service,
+	// e.g "kube_default_cert-service_8234". The cluster must use HTTP/2 (for a Service, set the
+	// port's appProtocol to kubernetes.io/h2c). Envoy fetches a secret named after each SNI the
+	// first time it sees it. Cannot be combined with certificateRefs, and disables TLS session
+	// resumption on the listener.
 	// Use in the TLS options field of a TLS listener.
 	OnDemandCertificatesSdsCluster gwv1.AnnotationKey = "kgateway.dev/on-demand-certificates-sds-cluster"
 )

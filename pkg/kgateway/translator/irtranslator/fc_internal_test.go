@@ -47,7 +47,7 @@ func TestFilterChainInfoCustomAlpn(t *testing.T) {
 }
 
 func TestFilterChainInfoOnDemandCertificates(t *testing.T) {
-	info := &FilterChainInfo{TLS: &ir.TLSConfig{OnDemandCertificatesSdsCluster: "gateway_proxy_sds"}}
+	info := &FilterChainInfo{TLS: &ir.TLSConfig{OnDemandCertificatesSdsCluster: "kube_default_cert-service_8234"}}
 
 	downstream := extractDownstreamTlsContext(t, info.toTransportSocket())
 	common := downstream.GetCommonTlsContext()
@@ -57,7 +57,7 @@ func TestFilterChainInfoOnDemandCertificates(t *testing.T) {
 
 	cfg := &envoyondemandsecretv3.Config{}
 	require.NoError(t, common.GetCustomTlsCertificateSelector().GetTypedConfig().UnmarshalTo(cfg))
-	require.Equal(t, "gateway_proxy_sds", cfg.GetConfigSource().GetApiConfigSource().GetGrpcServices()[0].GetEnvoyGrpc().GetClusterName())
+	require.Equal(t, "kube_default_cert-service_8234", cfg.GetConfigSource().GetApiConfigSource().GetGrpcServices()[0].GetEnvoyGrpc().GetClusterName())
 	require.NoError(t, cfg.GetCertificateMapper().GetTypedConfig().UnmarshalTo(&envoysnimapperv3.SNI{}))
 }
 
