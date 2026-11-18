@@ -10,6 +10,8 @@ import (
 	envoy_tls_inspector "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/listener/tls_inspector/v3"
 	envoyhttp "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoytcp "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/tcp_proxy/v3"
+	envoysnimapperv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/cert_mappers/sni/v3"
+	envoyondemandsecretv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/cert_selectors/on_demand_secret/v3"
 	envoytlsv3 "github.com/envoyproxy/go-control-plane/envoy/extensions/transport_sockets/tls/v3"
 	envoymatcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher/v3"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
@@ -530,11 +532,16 @@ func (info *FilterChainInfo) toTransportSocket() *envoycorev3.TransportSocket {
 		AlpnProtocols: alpnProtocols,
 	}
 
-	for _, certificate := range tlsConfig.Certificates {
-		common.TlsCertificates = append(common.TlsCertificates, &envoytlsv3.TlsCertificate{
-			CertificateChain: bytesDataSource(certificate.CertChain),
-			PrivateKey:       bytesDataSource(certificate.PrivateKey),
-		})
+	onDemand := tlsConfig.OnDemandCertificatesSdsCluster != ""
+	if onDemand {
+		common.CustomTlsCertificateSelector = onDemandCertificateSelector(tlsConfig.OnDemandCertificatesSdsCluster)
+	} else {
+		for _, certificate := range tlsConfig.Certificates {
+			common.TlsCertificates = append(common.TlsCertificates, &envoytlsv3.TlsCertificate{
+				CertificateChain: bytesDataSource(certificate.CertChain),
+				PrivateKey:       bytesDataSource(certificate.PrivateKey),
+			})
+		}
 	}
 
 	if tlsConfig.MinTLSVersion != nil {
@@ -567,6 +574,13 @@ func (info *FilterChainInfo) toTransportSocket() *envoycorev3.TransportSocket {
 	out := &envoytlsv3.DownstreamTlsContext{
 		CommonTlsContext: common,
 	}
+	if onDemand {
+		// Envoy rejects on-demand certificates while TLS session resumption is enabled.
+		out.SessionTicketKeysType = &envoytlsv3.DownstreamTlsContext_DisableStatelessSessionResumption{
+			DisableStatelessSessionResumption: true,
+		}
+		out.DisableStatefulSessionResumption = true
+	}
 
 	if tlsConfig.ClientCertificateValidation != nil {
 		out.RequireClientCertificate = &wrapperspb.BoolValue{Value: tlsConfig.ClientCertificateValidation.RequireClientCertificate}
@@ -576,6 +590,37 @@ func (info *FilterChainInfo) toTransportSocket() *envoycorev3.TransportSocket {
 	return &envoycorev3.TransportSocket{
 		Name:       wellknown.TransportSocketTls,
 		ConfigType: &envoycorev3.TransportSocket_TypedConfig{TypedConfig: typedConfig},
+	}
+}
+
+// onDemandCertificateSelector makes Envoy ask sdsCluster for a secret named after the SNI the
+// first time it sees that SNI, instead of serving certificates inlined in the listener.
+func onDemandCertificateSelector(sdsCluster string) *envoycorev3.TypedExtensionConfig {
+	// DefaultValue is the secret requested for connections that send no SNI.
+	mapper, _ := utils.MessageToAny(&envoysnimapperv3.SNI{DefaultValue: "no-sni"})
+	selector, _ := utils.MessageToAny(&envoyondemandsecretv3.Config{
+		ConfigSource: &envoycorev3.ConfigSource{
+			ResourceApiVersion: envoycorev3.ApiVersion_V3,
+			ConfigSourceSpecifier: &envoycorev3.ConfigSource_ApiConfigSource{
+				ApiConfigSource: &envoycorev3.ApiConfigSource{
+					ApiType:             envoycorev3.ApiConfigSource_GRPC,
+					TransportApiVersion: envoycorev3.ApiVersion_V3,
+					GrpcServices: []*envoycorev3.GrpcService{{
+						TargetSpecifier: &envoycorev3.GrpcService_EnvoyGrpc_{
+							EnvoyGrpc: &envoycorev3.GrpcService_EnvoyGrpc{ClusterName: sdsCluster},
+						},
+					}},
+				},
+			},
+		},
+		CertificateMapper: &envoycorev3.TypedExtensionConfig{
+			Name:        "envoy.tls.certificate_mappers.sni",
+			TypedConfig: mapper,
+		},
+	})
+	return &envoycorev3.TypedExtensionConfig{
+		Name:        "envoy.tls.certificate_selectors.on_demand_secret",
+		TypedConfig: selector,
 	}
 }
 

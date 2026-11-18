@@ -189,6 +189,18 @@ func ApplyAlpnProtocols(in string, out *ir.TLSConfig) error {
 	return nil
 }
 
+func ApplyOnDemandCertificatesSdsCluster(in string, out *ir.TLSConfig) error {
+	cluster := strings.TrimSpace(in)
+	if cluster == "" {
+		return fmt.Errorf("%s must name an SDS cluster", annotations.OnDemandCertificatesSdsCluster)
+	}
+	if len(out.Certificates) > 0 {
+		return fmt.Errorf("%s cannot be combined with certificateRefs", annotations.OnDemandCertificatesSdsCluster)
+	}
+	out.OnDemandCertificatesSdsCluster = cluster
+	return nil
+}
+
 func ApplyMinTLSVersion(in string, out *ir.TLSConfig) error {
 	protocol, ok := tlsProtocolMap[in]
 	if !ok {
@@ -290,14 +302,15 @@ func splitFakeYamlArray(in string) []string {
 }
 
 var TLSExtensionOptionFuncs = map[gwv1.AnnotationKey]TLSExtensionOptionFunc{
-	annotations.CipherSuites:          ApplyCipherSuites,
-	annotations.MinTLSVersion:         ApplyMinTLSVersion,
-	annotations.MaxTLSVersion:         ApplyMaxTLSVersion,
-	annotations.VerifySubjectAltNames: ApplyVerifySubjectAltNames,
-	annotations.EcdhCurves:            ApplyEcdhCurves,
-	annotations.SignatureAlgorithms:   ApplySignatureAlgorithms,
-	annotations.AlpnProtocols:         ApplyAlpnProtocols,
-	annotations.VerifyCertificateHash: ApplyVerifyCertificateHash,
+	annotations.CipherSuites:                   ApplyCipherSuites,
+	annotations.MinTLSVersion:                  ApplyMinTLSVersion,
+	annotations.MaxTLSVersion:                  ApplyMaxTLSVersion,
+	annotations.VerifySubjectAltNames:          ApplyVerifySubjectAltNames,
+	annotations.EcdhCurves:                     ApplyEcdhCurves,
+	annotations.SignatureAlgorithms:            ApplySignatureAlgorithms,
+	annotations.AlpnProtocols:                  ApplyAlpnProtocols,
+	annotations.VerifyCertificateHash:          ApplyVerifyCertificateHash,
+	annotations.OnDemandCertificatesSdsCluster: ApplyOnDemandCertificatesSdsCluster,
 }
 
 // ApplyTLSExtensionOptions applies the TLS options to the TLS bundle IR

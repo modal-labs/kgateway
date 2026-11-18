@@ -58,4 +58,14 @@ const (
 	// Valid values are sha256 hashes in hex format, e.g "7D86C6654C8229364ECFE4D4964C69410090AE09E9B4D0C9B2AD7854175AD51D" or "7D:86:C6:65:4C:82:29:36:4E:CF:E4:D4:96:4C:69:41:00:90:AE:09:E9:B4:D0:C9:B2:AD:78:54:17:5A:D5:1D".
 	// All characters, including formatting, are limited to 4096 characters by the annotation value specification https://gateway-api.sigs.k8s.io/reference/1.4/spec/#annotationvalue
 	VerifyCertificateHash gwv1.AnnotationKey = "kgateway.dev/verify-certificate-hash"
+
+	// OnDemandCertificatesSdsCluster is the annotation key used to load a TLS listener's
+	// certificates on demand from SDS instead of from certificateRefs. The value is the Envoy
+	// cluster that serves SDS, such as the cluster kgateway creates for a Kubernetes Service,
+	// e.g "kube_default_cert-service_8234". The cluster must use HTTP/2 (for a Service, set the
+	// port's appProtocol to kubernetes.io/h2c). Envoy fetches a secret named after each SNI the
+	// first time it sees it. Cannot be combined with certificateRefs, and disables TLS session
+	// resumption on the listener.
+	// Use in the TLS options field of a TLS listener.
+	OnDemandCertificatesSdsCluster gwv1.AnnotationKey = "kgateway.dev/on-demand-certificates-sds-cluster"
 )

@@ -99,6 +99,8 @@ type TLSConfig struct {
 	VerifyCertificateHash []string
 	// ClientCertificateValidation holds configuration for validating client certificates (mTLS)
 	ClientCertificateValidation *ClientCertificateValidation
+	// OnDemandCertificatesSdsCluster, if set, is the SDS cluster Envoy fetches certificates from by SNI.
+	OnDemandCertificatesSdsCluster string
 }
 
 // ClientCertificateValidation holds configuration for validating client certificates in mTLS scenarios
